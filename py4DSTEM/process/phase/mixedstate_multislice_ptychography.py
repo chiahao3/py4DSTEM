@@ -5,6 +5,9 @@ namely multislice ptychography.
 
 from typing import Mapping, Sequence, Tuple, Union
 
+import os
+import h5py
+
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -780,6 +783,8 @@ class MixedstateMultislicePtychography(
         device: str = None,
         clear_fft_cache: bool = None,
         object_type: str = None,
+        save_iters: int = None, # Added by CHL to save intermediate results
+        output_path: str = None,# Added by CHL to save intermediate results
     ):
         """
         Ptychographic reconstruction main method.
@@ -977,7 +982,9 @@ class MixedstateMultislicePtychography(
 
         if detector_fourier_mask is not None:
             detector_fourier_mask = xp.asarray(detector_fourier_mask)
-
+        
+        self.iter_times = []
+        niter = 1 # iteration counter
         # main loop
         for a0 in tqdmnd(
             num_iter,
@@ -986,7 +993,14 @@ class MixedstateMultislicePtychography(
             disable=not progress_bar,
         ):
             error = 0.0
-
+            
+            # Create CUDA events
+            start_event = cp.cuda.Event()
+            end_event = cp.cuda.Event()
+            
+            # Start recording iter_t
+            start_event.record()
+            
             # randomize
             if not use_projection_scheme:
                 np.random.shuffle(shuffled_indices)
@@ -1126,13 +1140,31 @@ class MixedstateMultislicePtychography(
                 orthogonalize_probe=orthogonalize_probe,
             )
 
+            # Log iter_t and error
+            end_event.record()
+            end_event.synchronize()
+            iter_t = cp.cuda.get_elapsed_time(start_event, end_event) / 1000 # cp event is in unit of ms
+            print(f"Iter: {niter}, Total Loss: {error:.4g} in {iter_t:.3f} sec")
+            
             self.error_iterations.append(error.item())
+            self.iter_times.append(iter_t)
 
             if store_iterations:
                 self.object_iterations.append(asnumpy(self._object.copy()))
                 self.probe_iterations.append(self.probe_centered)
+                
+            # Iteration-specific saving added by CHL
+            if save_iters is not None and niter % save_iters == 0:
+                print(f"Saving results for iter {niter}")
+                with h5py.File(os.path.join(output_path, f'py4dstem_model_iter{str(niter).zfill(4)}.hdf5'), "w") as f:
+                    f.create_dataset('probe',            data=self.probe_centered)
+                    f.create_dataset('object',           data=asnumpy(self._object.copy()))
+                    f.create_dataset('positions_px',     data=self._positions_px)
+                    f.create_dataset('error_iterations', data=self.error_iterations)
+                    f.create_dataset('iter_times',       data=self.iter_times)
+            niter += 1
 
-        # store result
+        # store result (This saves the final result via original py4DSTEM implementation)
         self.object = asnumpy(self._object)
         self.probe = self.probe_centered
         self.error = error.item()

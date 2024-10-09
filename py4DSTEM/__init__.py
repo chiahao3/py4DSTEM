@@ -5,6 +5,8 @@ from importlib.metadata import packages_distributions
 
 is_package_lite = "py4DSTEM-lite" in packages_distributions()["py4DSTEM"]
 
+print("Load py4DSTEM-dev v0.0.1 from editable local repo")
+
 ### io
 
 # substructure
