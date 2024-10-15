@@ -1040,7 +1040,7 @@ class MixedstatePtychography(
                 with h5py.File(os.path.join(output_path, f'py4dstem_model_iter{str(niter).zfill(4)}.hdf5'), "w") as f:
                     f.create_dataset('probe',            data=self.probe_centered)
                     f.create_dataset('object',           data=asnumpy(self._object.copy()))
-                    f.create_dataset('positions_px',     data=self._positions_px)
+                    f.create_dataset('positions_px',     data=asnumpy(self._positions_px))
                     f.create_dataset('error_iterations', data=self.error_iterations)
                     f.create_dataset('iter_times',       data=self.iter_times)
             niter += 1
