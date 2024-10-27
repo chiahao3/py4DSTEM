@@ -5,9 +5,6 @@ namely multislice ptychography.
 
 from typing import Mapping, Sequence, Tuple, Union
 
-import os
-import h5py
-
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -46,6 +43,7 @@ from py4DSTEM.process.phase.utils import (
     polar_aliases,
     polar_symbols,
 )
+from py4DSTEM.process.phase.utils_CHL import save_results
 
 
 class MixedstateMultislicePtychography(
@@ -784,6 +782,8 @@ class MixedstateMultislicePtychography(
         clear_fft_cache: bool = None,
         object_type: str = None,
         save_iters: int = None, # Added by CHL to save intermediate results
+        save_result: list = None, # Added by CHL to save intermediate results
+        result_modes: dict = None, # Added by CHL to save intermediate results
         output_path: str = None,# Added by CHL to save intermediate results
     ):
         """
@@ -1156,12 +1156,7 @@ class MixedstateMultislicePtychography(
             # Iteration-specific saving added by CHL
             if save_iters is not None and niter % save_iters == 0:
                 print(f"Saving results for iter {niter}")
-                with h5py.File(os.path.join(output_path, f'py4dstem_model_iter{str(niter).zfill(4)}.hdf5'), "w") as f:
-                    f.create_dataset('probe',            data=self.probe_centered)
-                    f.create_dataset('object',           data=asnumpy(self._object.copy()))
-                    f.create_dataset('positions_px',     data=asnumpy(self._positions_px))
-                    f.create_dataset('error_iterations', data=self.error_iterations)
-                    f.create_dataset('iter_times',       data=self.iter_times)
+                save_results(output_path=output_path, model=self, save_result=save_result, result_modes=result_modes, niter=niter)
             niter += 1
 
         # store result (This saves the final result via original py4DSTEM implementation)
