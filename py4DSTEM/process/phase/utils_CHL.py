@@ -166,6 +166,17 @@ def load_tif(file_path):
     print("Imported .tif data shape =", data.shape)
     return data
 
+def load_npy(file_path):
+
+    # Check if the file exists
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The specified file '{file_path}' does not exist.")
+    
+    data = np.load(file_path)
+    print("Success! Loaded .npy file path =", file_path)
+    print("Imported .npy data shape =", data.shape)
+    return data
+
 def load_fields_from_mat(file_path, target_field="All", squeeze_me=True, simplify_cells=True):
     """
     Load and extract specified fields from a MATLAB .mat file.
@@ -288,6 +299,8 @@ def init_datacube(exp_params):
         meas = load_fields_from_mat(data_path, data_key)[0]
     elif data_source == 'hdf5':
         meas = load_hdf5(data_path, data_key).astype('float32')
+    elif data_source == 'npy':
+        meas = load_npy(data_path).astype('float32')
     elif data_source == 'raw':
         default_shape = (exp_params['N_scans'], exp_params['Npix'], exp_params['Npix'])
         meas = load_raw(data_path,
@@ -393,7 +406,7 @@ def init_ptycho(datacube, exp_params):
             datacube=datacube,
             num_probes = exp_params['pmode_max'],
             num_slices=exp_params['Nlayer'],
-            slice_thicknesses=exp_params['z_distance'],
+            slice_thicknesses=exp_params['slice_thickness'],
             verbose=True,
             energy = exp_params['kv']*1e3, # energy in eV
             defocus= exp_params['defocus'], # defocus guess in A
@@ -425,8 +438,8 @@ def make_output_folder(exp_params, recon_params):
     folder_str += f"_random{recon_params['BATCH_SIZE']}_p{exp_params['pmode_max']}_{exp_params['Nlayer']}slice"
 
     if exp_params['Nlayer'] != 1:
-        z_distance = np.array(exp_params['z_distance']).round(2)
-        folder_str += f"_dz{z_distance:.3g}"
+        slice_thickness = np.array(exp_params['slice_thickness']).round(2)
+        folder_str += f"_dz{slice_thickness:.3g}"
     
     # Append update step size
     folder_str += f"_update{recon_params['update_step_size']}"
@@ -627,4 +640,4 @@ def py4DSTEM_ptycho_solver(params):
     ptycho.reconstruct(**kwargs)
     
     solver_end_t = time()
-    print(f"py4DSTEM ptycho solver is finished in {parse_sec_to_time_str(solver_end_t - solver_start_t)}")
+    print(f"### py4DSTEM ptycho solver is finished in {parse_sec_to_time_str(solver_end_t - solver_start_t)}###\n")

@@ -1040,6 +1040,8 @@ class MixedstatePtychography(
                 save_results(output_path=output_path, model=self, save_result=save_result, result_modes=result_modes, niter=niter)
             niter += 1
 
+        print(f"### Finished {num_iter} iterations, averaged iter_t = {np.mean(self.iter_times):.3f} with std = {np.std(self.iter_times):.3f} sec ###")
+
         # store result (This saves the final result via original py4DSTEM implementation)
         self.object = asnumpy(self._object)
         self.probe = self.probe_centered
