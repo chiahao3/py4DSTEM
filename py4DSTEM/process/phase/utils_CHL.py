@@ -309,7 +309,7 @@ def init_datacube(exp_params):
                         gap=exp_params['measurements_params'].get('gap', 1024))
     else:
         raise KeyError(f"File type {data_source} not implemented yet, please use 'custom', 'tif', 'mat', or 'hdf5'!!")
-    print(f"Imported meausrements shape = {meas.shape}")
+    print(f"Imported meausrements shape / dtype = {meas.shape}, {meas.dtype}")
     print(f"Imported meausrements int. statistics (min, mean, max) = ({meas.min():.4f}, {meas.mean():.4f}, {meas.max():.4f})")
 
     # Permute, reshape, and flip
@@ -361,6 +361,19 @@ def init_datacube(exp_params):
         meas = zoom(meas, zoom_factors, order=1)
         print("Update `exp_params` (Npix) after the measurements resampling")
         exp_params['Npix'] = meas.shape[-1]
+    
+    # Correct negative values if any
+    if (meas < 0).any():
+        min_value = meas.min()
+        meas -= min_value
+        # Subtraction is more general, but clipping might be more noise-robust due to the inherent denoising
+        print(f"Minimum value of {min_value:.4f} subtracted due to the positive px value constraint of measurements")
+         
+    # Normalizing meas
+    print("Normalizing measurements so the averaged measurement has max intensity at 1")
+    meas = meas / (np.mean(meas, (0,1)).max()) # Normalizing the meas_data so that the averaged DP has max at 1. This will make each DP has max somewhere ~ 1
+    meas = meas.astype('float32')
+    print(f"Processed meausrements int. statistics (min, mean, max) = ({meas.min():.4f}, {meas.mean():.4f}, {meas.max():.4f})")
     
     # Calibrate py4DSTEM datacube
     datacube = py4DSTEM.DataCube(meas)
